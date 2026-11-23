@@ -327,6 +327,9 @@ h1, h2, .closing { overflow-wrap: anywhere; }
   .big-info .bi-v { font-size: 14px; }
   .g-left .card:last-child .g-info div:nth-child(n+3) { display: none; }       
   .now-road { gap: 5px; }
+  .g-left .big-info .bi-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .now-road .nr-t { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .now-road .nr-sh svg { height: 1.35em; }
   .g-info div { grid-template-columns: 2.9em 1fr; font-size: 11.5px !important; line-height: 1.35; }
   .g-info dt { font-size: 10.5px; }
   .meter { grid-template-columns: 2em 1fr 1.7em; gap: 4px; }
@@ -341,8 +344,6 @@ h1, h2, .closing { overflow-wrap: anywhere; }
   .scene, .log2 { grid-area: panel; min-height: 0; display: none; }
   .m-tab[data-t="map"] { display: none; }
   .game[data-tab="scene"] .scene { display: grid; overflow-y: auto; align-content: start; gap: 6px; }
-  .game:not([data-mode="junction"]):not([data-mode="city"]):not([data-mode="start"]) { grid-template-rows: auto auto auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .game:not([data-mode="junction"]):not([data-mode="city"]):not([data-mode="start"]) .g-right { aspect-ratio: auto; }
   .game:not([data-mode="junction"]):not([data-mode="city"]):not([data-mode="start"]) .m-last li { font-size: 12.5px; }
   .m-last { grid-area: last; display: grid !important; min-height: 0; overflow: hidden; align-content: start; gap: 2px; margin: 0; padding: 0; list-style: none; }
   .m-last li { display: grid; grid-template-columns: 3em 1fr; gap: 4px; font-family: var(--f-serif); font-size: 12px; line-height: 1.5; }
@@ -363,7 +364,7 @@ h1, h2, .closing { overflow-wrap: anywhere; }
   .game[data-tab="scene"] .scene { display: flex !important; flex-direction: column; overflow-y: auto; }
   .scene > * { flex: 0 0 auto; }
   .scene > .signbox { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; align-items: center; }
-  .signbox svg { flex: 1 1 0; min-height: 0; width: 100%; height: 100%; max-height: none; }
+  .signbox svg { flex: 0 1 auto; min-height: 0; width: 100%; height: auto; max-height: 100%; }
   .scene-msg { font-size: 15px; }
   .feedback strong { font-size: 15px; }
   .city-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -385,7 +386,7 @@ h1, h2, .closing { overflow-wrap: anywhere; }
   .scene-choices .choice { min-width: 0; }
   .plate { justify-self: stretch; padding: 8px 14px 10px; }
   .scene-msg { line-height: 1.6; }
-  .signbox .sign-dir { position: static; justify-self: start; margin-top: 4px; }
+  .signbox, .signbox.plain { background: transparent; padding: 0; }
   .m-br { display: inline; }
 }
 .leaflet-pane,
@@ -2112,6 +2113,7 @@ function setMode(m) {
   G.mode = m;
   if ($("#game")) $("#game").dataset.mode = m;
   if (m === "junction" || m === "city" || m === "start") setTab("scene");
+  else setTab("log");
   view.walking = m === "walk";
   view.pose = m === "rest" || m === "forced" ? "sit" : m === "sleep" ? "lie" : "stand";
   renderScene();
@@ -2566,10 +2568,10 @@ function drawJunction(C) {
   const anyReal = C.branches.some((x) => x.real);
   const here = G.townHidden ? "" : C.here;
   $("#scene").innerHTML = `<div class="jx-head"><span class="jx-kind">${C.deadEnd ? "行き止まり" : C.plain ? "分かれ道" : "交差点"}</span>`
-    + (C.jname ? `<span class="jx-plate" title="交差点名の標識">${esc(C.jname)}</span>${here && here !== C.jname ? `<span class="jx-sub">${esc(here)} 付近</span>` : ""}`
+    + (C.jname ? `<span class="jx-place">${esc(C.jname)}</span>${here && here !== C.jname ? `<span class="jx-sub">${esc(here)} 付近</span>` : ""}`
       : `<span class="jx-place">${here ? esc(here) : (G.townHidden ? "山の中の交差点" : "名もない交差点")}</span>${here ? '<span class="jx-sub">付近</span>' : ""}`)
     + `</div>`
-    + `<div class="signbox${C.plain ? " plain" : ""}" id="signbox">${signSVG(C)}<span class="sign-dir" title="上方向（いま向いている方向）">${C.plain ? "看板なし・↑は" : "看板の↑は"}<b>${dir8(C.approach)}</b></span>`
+    + `<div class="signbox${C.plain ? " plain" : ""}" id="signbox">${signSVG(C)}`
     + (anyReal ? `<span class="sign-real">実在の看板の記録あり</span>` : "") + `</div>`
     + `<div id="j-fb" class="feedback" hidden></div>`;
   $("#choices").innerHTML = "";
