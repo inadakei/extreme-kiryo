@@ -1875,18 +1875,39 @@ function contEdge(n, ein) {
     const same = sameRoad(rin, roadOf(ej)) ? 0 : 1, ang = Math.abs(norm180(outBearing(ej, n) - hin));
     if (ang <= (same === 0 ? 60 : 40)) { const k = same * 1000 + ang; if (!best || k < best.k) best = { k, ej, ang, same }; }
   });
-  if (!best) return null;
+  if (best && best.same === 1 && rin.kind !== "道") {
+    const rkIn = NET.edges[ein].rk;
+    if (NET.edges[best.ej].rk > rkIn) {
+      let alt = null;
+      NET.adj[n].forEach((ej) => {
+        if (ej === ein || !sameRoad(rin, roadOf(ej))) return;
+        const ang = Math.abs(norm180(outBearing(ej, n) - hin));
+        if (ang <= 100 && (!alt || ang < alt.ang)) alt = { ej, ang };
+      });
+      if (alt) return alt.ej;
+    }
+  }
+  if (!best) {
+    if (rin.kind === "道") return null;
+    let alt = null;
+    NET.adj[n].forEach((ej) => {
+      if (ej === ein || !sameRoad(rin, roadOf(ej))) return;
+      const ang = Math.abs(norm180(outBearing(ej, n) - hin));
+      if (ang <= 100 && (!alt || ang < alt.ang)) alt = { ej, ang };
+    });
+    return alt ? alt.ej : null;
+  }
   let pick = best.ej;
   NET.adj[n].forEach((ej) => {
     if (ej === ein || ej === pick) return;
     const same2 = sameRoad(rin, roadOf(ej)) ? 0 : 1, ang2 = Math.abs(norm180(outBearing(ej, n) - hin));
-    if (same2 === best.same && Math.abs(ang2 - best.ang) <= 20 && ang2 <= (same2 === 0 ? 60 : 40) && viaDist(ej, n) < viaDist(pick, n)) pick = ej;
+    if (same2 === best.same && roadOf(ej).num === roadOf(best.ej).num && Math.abs(ang2 - best.ang) <= 20 && ang2 <= (same2 === 0 ? 60 : 40) && viaDist(ej, n) < viaDist(pick, n)) pick = ej;
   });
   return pick;
 }
 const isUturn = (e, n, ein) => ein !== null && (() => {
   const a = Math.abs(norm180(outBearing(e, n) - inHeading(ein, n))), re = roadOf(e), ri = roadOf(ein);
-  if (sameRoad(re, ri)) return a > 120;
+  if (sameRoad(re, ri)) return a > 120 && Math.abs(norm180(farBearing(e, n) - farBearing(ein, n))) <= 25;
   if ((re.kind === "国道" || re.kind === "県道") && a <= 170) return false;
   return a > 155;
 })();
@@ -1912,11 +1933,15 @@ function isAsk(n, ein) {
 }
 function branchAsk(n, ein, c) {
   const outs = NET.adj[n].filter((e) => e !== ein && e !== c && !isUturn(e, n, ein));
-  return outs.some((e) => bigEnough(e, ein) && !isTwin(e, c, n) && (Math.abs(norm180(outBearing(e, n) - outBearing(c, n))) > 15 || farDiff(e, c, n) > 30));
+  const ri = roadOf(ein);
+  return outs.some((e) => bigEnough(e, ein) && !isTwin(e, c, n) && (Math.abs(norm180(outBearing(e, n) - outBearing(c, n))) > 15 || farDiff(e, c, n) > 30
+    || (ri.kind !== "道" && sameRoad(roadOf(e), ri) && sameRoad(roadOf(c), ri) && roadOf(e).num !== roadOf(c).num && farDiff(e, c, n) > 10)));
 }
 function isTwin(e, c, n) {
   if (c === null || c === undefined || e === c) return false;
-  return sameRoad(roadOf(e), roadOf(c)) && Math.abs(norm180(outBearing(e, n) - outBearing(c, n))) <= 45 && farDiff(e, c, n) <= 30;
+  const re = roadOf(e), rc = roadOf(c);
+  if (re.kind !== "道" && rc.kind !== "道" && re.num !== rc.num) return false;
+  return sameRoad(re, rc) && Math.abs(norm180(outBearing(e, n) - outBearing(c, n))) <= 45 && farDiff(e, c, n) <= 30;
 }
 const farCache = new Map();
 function farBearing(e, n) {
@@ -1929,6 +1954,7 @@ function farBearing(e, n) {
 const farDiff = (e, f, n) => Math.abs(norm180(farBearing(e, n) - farBearing(f, n)));
 function bigEnough(e, ein) {
   if (NET.edges[e].rk <= NET.edges[ein].rk) return true;
+  if (roadOf(ein).kind !== "道" && sameRoad(roadOf(e), roadOf(ein))) return true;
   const ri = roadOf(ein), r = roadOf(e);
   return ri.kind === "国道" && r.kind === "県道" && NET.edges[e].rk <= 1;
 }
@@ -2551,7 +2577,7 @@ function askAt(n, ein) {
   outs = outs.filter((e, i) => !outs.slice(0, i).some((f) => {
     const dA = Math.abs(norm180(outBearing(e, n) - outBearing(f, n)));
     const hit = (() => {
-    if (sameRoad(roadOf(e), roadOf(f)) && roadOf(e).kind !== "道" && dA <= 50) return true;
+    if (sameRoad(roadOf(e), roadOf(f)) && roadOf(e).kind !== "道" && roadOf(e).num === roadOf(f).num && dA <= 50 && farDiff(e, f, n) <= 30) return true;
     return (dA <= 15 || (sameRoad(roadOf(e), roadOf(f)) && dA <= 30)) && farDiff(e, f, n) <= 30;
     })();
     if (hit && !mergedInto.has(e)) mergedInto.set(e, f);
